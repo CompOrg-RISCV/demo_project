@@ -43,31 +43,73 @@ event me : pipeline(pipe.MEMWB)
         ldst.transport(CP_PHS_DATA, data_ready, data_response, load_data, r_exmem_mem_encodeddata);
         load_data_decoded = ldst.decode_data(load_data, r_exmem_alu_result, r_exmem_mem_size);
 
-        if ((!data_ready & !data_response)) s_me_mem_busy = true;
-
         switch (r_exmem_mem_ops) {
             case MEM_NOP:
                 s_me_mem_result = 0;
+                s_syscall_pending = false;
                 break;
             case MEM_LW:
                 s_me_mem_result = load_data_decoded;
+                s_syscall_pending = false;
                 break;
             case MEM_LH:
                 s_me_mem_result = (int32)(int16) load_data_decoded;
+                s_syscall_pending = false;
                 break;
             case MEM_LHU:
                 s_me_mem_result = (uint32) (uint16)load_data_decoded;
+                s_syscall_pending = false;
                 break;
             case MEM_LB:
                 s_me_mem_result = (int32)(int8) load_data_decoded;
+                s_syscall_pending = false;
                 break;
             case MEM_LBU:
                 s_me_mem_result = (uint32)(uint8) load_data_decoded;
+                s_syscall_pending = false;
+                break;
+            case MEM_SW:
+                if (r_exmem_alu_result == SYSCALL_ADDRESS && (data_ready && !data_response))
+                {
+                    if (r_exmem_mem_encodeddata == 1)
+                    {
+                       #pragma simulator
+                       {
+                               codasip_store_exit_code(rf_xpr[FUNCTION_REG] & 0xFFFF);
+                       }
+                               codasip_halt();
+                    }else
+                    {
+                        #pragma simulator
+                        {
+                            s_syscall_pending = true;
+                        }
+                    }
+                }
                 break;
             default:
                 s_me_mem_result = 0;
+                s_syscall_pending = false;
                 break;
         };
+
+        #pragma simulator
+        {
+            if (s_syscall_pending || (r_syscall_delay != 0)) {
+                if (r_syscall_delay == 3) {
+                    codasip_syscall(r_exmem_mem_encodeddata);
+                    s_syscall_stall = false;
+                    r_syscall_delay = 0;
+                } else {
+                    r_syscall_delay++;
+                    s_syscall_stall = true;
+                }
+            } else  {
+                s_syscall_stall = false;
+            }
+        }
+        if ((!data_ready & !data_response) || s_syscall_stall) s_me_mem_busy = true;
+
 
         // call branch event to determine if a change of program flow is required
         branch_logic();
