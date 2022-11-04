@@ -119,6 +119,8 @@ enum alu_src1_sel
     ALU_SRC1_EXMEM_DF,     // Set output from ME pipeline register (Data forwarding was calculated while in EX stage)
     ALU_SRC1_MEMWB_DF,     // Set output from WB pipelien register while in execute stage for forwarding
     ALU_SRC1_SEL_FOUR,      // constant of 4 used for calculation of a return address
+    ALU_SRC1_SEL_ZERO,      // constant of 0
+    ALU_SRC1_SEL_PC,        // PC address
 };
 
 // ALU SRC2 select lines
